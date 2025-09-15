@@ -1,0 +1,1 @@
+sampul jangan taruh di backend, siapkan cloud storage untuk sampul eg firebase or aws
