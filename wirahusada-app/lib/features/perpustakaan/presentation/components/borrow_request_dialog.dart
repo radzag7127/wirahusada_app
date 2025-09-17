@@ -176,7 +176,7 @@ class _BorrowRequestDialogState extends State<BorrowRequestDialog> {
                             color: Color(0xFF1976D2),
                           ),
                         ),
-                        if (widget.collection.penulis?.isNotEmpty == true) ...[
+                        if (widget.collection.penulis.isNotEmpty == true) ...[
                           const SizedBox(height: 2),
                           Text(
                             'oleh ${widget.collection.penulis}',

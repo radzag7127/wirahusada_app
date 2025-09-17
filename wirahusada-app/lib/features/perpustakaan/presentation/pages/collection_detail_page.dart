@@ -1,12 +1,12 @@
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:wismon_keuangan/features/perpustakaan/domain/entities/collection.dart';
 import 'package:wismon_keuangan/features/perpustakaan/presentation/bloc/library_bloc.dart';
-import 'package:wismon_keuangan/features/perpustakaan/presentation/bloc/library_event.dart';
 import 'package:wismon_keuangan/features/perpustakaan/presentation/bloc/library_state.dart';
-import 'package:wismon_keuangan/features/perpustakaan/presentation/widgets/borrow_request_dialog.dart';
+import 'package:wismon_keuangan/features/perpustakaan/presentation/components/borrow_request_dialog.dart';
 
-class CollectionDetailPage extends StatefulWidget {
+class CollectionDetailPage extends StatelessWidget {
   final Collection collection;
 
   const CollectionDetailPage({
@@ -15,344 +15,221 @@ class CollectionDetailPage extends StatefulWidget {
   });
 
   @override
-  State<CollectionDetailPage> createState() => _CollectionDetailPageState();
-}
-
-class _CollectionDetailPageState extends State<CollectionDetailPage> {
-  late LibraryBloc _libraryBloc;
-
-  @override
-  void initState() {
-    super.initState();
-    _libraryBloc = BlocProvider.of<LibraryBloc>(context);
-  }
-
-  void _showBorrowDialog() {
-    showDialog(
-      context: context,
-      builder: (context) => BlocProvider.value(
-        value: _libraryBloc,
-        child: BorrowRequestDialog(
-          collection: widget.collection,
-        ),
-      ),
-    );
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Detail Koleksi',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        backgroundColor: const Color(0xFF1976D2),
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: BlocListener<LibraryBloc, LibraryState>(
-        listener: (context, state) {
-          if (state is BorrowRequestSuccess) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.green,
-              ),
-            );
-            Navigator.of(context).pop(); // Close dialog if open
-          } else if (state is LibraryError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(state.message),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        },
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header with cover image
-              Container(
-                height: 250,
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0xFF1976D2), Color(0xFF42A5F5)],
-                  ),
-                ),
+      backgroundColor: const Color(0xFFFAFAFA),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildHeader(context),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    // Cover placeholder or image
-                    Container(
-                      width: 120,
-                      height: 160,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+                    // Cover
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(8),
+                      child: Image.network(
+                        collection.sampul ??
+                            "https://via.placeholder.com/200x280.png?text=No+Image",
+                        height: 280,
+                        width: 200,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) => Container(
+                          height: 280,
+                          width: 200,
+                          color: Colors.grey[300],
+                          child: const Icon(Icons.broken_image,
+                              size: 50, color: Colors.white),
+                        ),
                       ),
-                      child: widget.collection.sampul?.isNotEmpty == true
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.network(
-                                widget.collection.sampul!,
-                                fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) =>
-                                    _buildCoverPlaceholder(),
-                              ),
-                            )
-                          : _buildCoverPlaceholder(),
                     ),
+
                     const SizedBox(height: 16),
-                    // Availability status
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
+
+                    // Judul
+                    Text(
+                      collection.judul,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
                       ),
-                      decoration: BoxDecoration(
-                        color: (widget.collection.stokTersedia ?? 0) > 0
-                            ? Colors.green
-                            : Colors.red,
-                        borderRadius: BorderRadius.circular(20),
+                      textAlign: TextAlign.center,
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    // Penulis
+                    Text(
+                      "Oleh ${collection.penulis}",
+                      style: const TextStyle(fontSize: 14, color: Colors.grey),
+                      textAlign: TextAlign.center,
+                    ),
+
+                    const SizedBox(height: 16),
+
+                    // Info tambahan
+                    Card(
+                      color: Colors.white,
+                      elevation: 2,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
                       ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 16, horizontal: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            _infoItem("Penerbit", collection.penerbit ?? '-'),
+                            _divider(),
+                            _infoItem('Status', (collection.stokTersedia ?? 0) > 0 ? 'Tersedia' : 'Dipinjam'),
+                            _divider(),
+                            _infoItem("Lokasi", collection.lokasiRak ?? "-"),
+                            _divider(),
+                            _infoItem("Topik", collection.topik),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Deskripsi
+                    const Align(
+                      alignment: Alignment.centerLeft,
                       child: Text(
-                        (widget.collection.stokTersedia ?? 0) > 0
-                            ? 'Tersedia (${widget.collection.stokTersedia ?? 0})'
-                            : 'Tidak Tersedia',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
+                        "Deskripsi",
+                        style: TextStyle(
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      collection.deskripsi ?? "Tidak ada deskripsi",
+                      textAlign: TextAlign.justify,
+                      style: const TextStyle(fontSize: 14, height: 1.5),
                     ),
                   ],
                 ),
               ),
-              
-              // Content section
-              Container(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(24),
-                    topRight: Radius.circular(24),
-                  ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Title
-                      Text(
-                        widget.collection.judul,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1976D2),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      
-                      // Author
-                      if (widget.collection.penulis?.isNotEmpty == true)
-                        Text(
-                          'oleh ${widget.collection.penulis}',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      
-                      const SizedBox(height: 24),
-                      
-                      // Details section
-                      _buildDetailSection('Informasi Koleksi', [
-                        _buildDetailItem('Kode', widget.collection.kode),
-                        _buildDetailItem('Kategori', widget.collection.kategori),
-                        if (widget.collection.topik?.isNotEmpty == true)
-                          _buildDetailItem('Topik', widget.collection.topik!),
-                        if (widget.collection.penerbit?.isNotEmpty == true)
-                          _buildDetailItem('Penerbit', widget.collection.penerbit!),
-                        if (widget.collection.tahun != null)
-                          _buildDetailItem('Tahun Terbit', widget.collection.tahun!),
-                        if (widget.collection.isbn?.isNotEmpty == true)
-                          _buildDetailItem('ISBN', widget.collection.isbn!),
-                        _buildDetailItem('Total Stok', (widget.collection.stokTotal ?? 0).toString()),
-                        _buildDetailItem('Stok Tersedia', (widget.collection.stokTersedia ?? 0).toString()),
-                        if (widget.collection.lokasiRak?.isNotEmpty == true)
-                          _buildDetailItem('Lokasi Rak', widget.collection.lokasiRak!),
-                      ]),
-                      
-                      const SizedBox(height: 24),
-                      
-                      // Description
-                      if (widget.collection.deskripsi?.isNotEmpty == true) ...[
-                        _buildDetailSection('Deskripsi', []),
-                        const SizedBox(height: 8),
-                        Text(
-                          widget.collection.deskripsi!,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey,
-                            height: 1.5,
-                          ),
-                        ),
-                        const SizedBox(height: 32),
-                      ],
-                      
-                      // Borrow button
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: (widget.collection.stokTersedia ?? 0) > 0
-                              ? _showBorrowDialog
-                              : null,
-                          icon: Icon(
-                            (widget.collection.stokTersedia ?? 0) > 0
-                                ? Icons.book_online
-                                : Icons.block,
-                            color: Colors.white,
-                          ),
-                          label: Text(
-                            (widget.collection.stokTersedia ?? 0) > 0
-                                ? 'Ajukan Peminjaman'
-                                : 'Tidak Tersedia',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: (widget.collection.stokTersedia ?? 0) > 0
-                                ? const Color(0xFF4CAF50)
-                                : Colors.grey,
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+            ),
+          ],
+        ),
+      ),
+      bottomNavigationBar: Padding(
+        padding: const EdgeInsets.all(16),
+        child: SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: (collection.stokTersedia ?? 0) > 0
+                  ? const Color(0xFF135EA2)
+                  : Colors.grey,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
               ),
-            ],
+            ),
+            onPressed: (collection.stokTersedia ?? 0) > 0
+                ? () {
+                    showDialog(
+                      context: context,
+                      builder: (dialogContext) => BlocProvider.value(
+                        value: context.read<LibraryBloc>(),
+                        child: BorrowRequestDialog(
+                          collection: collection,
+                        ),
+                      ),
+                    );
+                  }
+                : null,
+            child: Text(
+              (collection.stokTersedia ?? 0) > 0
+                  ? 'Ajukan Peminjaman'
+                  : 'Stok Habis',
+              style: const TextStyle(fontSize: 16, color: Colors.white),
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildCoverPlaceholder() {
+  // Header
+  Widget _buildHeader(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            _getCategoryIcon(),
-            size: 40,
-            color: Colors.grey[400],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            widget.collection.kategori.toUpperCase(),
-            style: TextStyle(
-              fontSize: 10,
-              color: Colors.grey[600],
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  IconData _getCategoryIcon() {
-    switch (widget.collection.kategori.toLowerCase()) {
-      case 'buku':
-        return Icons.book;
-      case 'jurnal':
-        return Icons.article;
-      case 'skripsi':
-      case 'tesis':
-      case 'disertasi':
-        return Icons.school;
-      default:
-        return Icons.library_books;
-    }
-  }
-
-  Widget _buildDetailSection(String title, List<Widget> items) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1976D2),
-          ),
+      padding: EdgeInsets.only(top: MediaQuery.of(context).padding.top),
+      decoration: const BoxDecoration(
+        color: Color(0xFF135EA2),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(16),
+          bottomRight: Radius.circular(16),
         ),
-        const SizedBox(height: 16),
-        ...items,
-      ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Container(
+              width: 40,
+              height: 40,
+              decoration: ShapeDecoration(
+                color: const Color(0xFFFAFAFA),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                shadows: const [
+                  BoxShadow(
+                    color: Color(0x0C000000),
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back_ios_new),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ),
+            const Text(
+              'Detail Buku',
+              style: TextStyle(
+                color: Color(0xFFFAFAFA),
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(width: 40),
+          ],
+        ),
+      ),
     );
   }
 
-  Widget _buildDetailItem(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+  // Widget Info
+  Widget _infoItem(String title, String value) {
+    return Expanded(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              label,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey,
-              ),
-            ),
-          ),
-          const Text(': '),
-          Expanded(
-            child: Text(
-              value,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.black87,
-              ),
-            ),
-          ),
+          Text(title,
+              style: const TextStyle(fontSize: 12, color: Colors.grey),
+              textAlign: TextAlign.center),
+          const SizedBox(height: 4),
+          Text(value,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+              textAlign: TextAlign.center),
         ],
       ),
     );
+  }
+
+  Widget _divider() {
+    return Container(height: 30, width: 1, color: Colors.grey[300]);
   }
 }

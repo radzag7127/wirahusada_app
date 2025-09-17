@@ -1,3 +1,5 @@
+// ignore_for_file: unused_local_variable
+
 import 'package:equatable/equatable.dart';
 import 'package:wismon_keuangan/features/perpustakaan/domain/usecases/return_book_usecase.dart';
 
@@ -334,7 +336,7 @@ class DateRange extends Equatable {
   
   /// Get human-readable description
   String get description {
-    final formatter = DateTime.now().year == startDate.year && 
+    final formatter = DateTime.now().year == startDate.year &&
                      DateTime.now().year == endDate.year
         ? 'MMM d'  // Same year
         : 'MMM d, yyyy'; // Different year

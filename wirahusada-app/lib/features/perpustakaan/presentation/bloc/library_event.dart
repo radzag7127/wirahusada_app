@@ -16,7 +16,7 @@ class LoadAllCollectionsEvent extends LibraryEvent {
 class LoadCollectionsByCategoryEvent extends LibraryEvent {
   final String category;
 
-  const LoadCollectionsByCategoryEvent({required this.category});
+  const LoadCollectionsByCategoryEvent(String s, {required this.category});
 
   @override
   List<Object> get props => [category];

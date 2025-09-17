@@ -70,6 +70,7 @@ class LibraryLoaded extends LibraryState {
         searchQuery,
         isSearchActive,
       ];
+
 }
 
 /// State when a single collection is loaded (for detail view)
