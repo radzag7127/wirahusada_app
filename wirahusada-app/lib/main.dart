@@ -391,9 +391,14 @@ void _updateBlocsOnLogin(BuildContext context, String userNrm) {
   }
 }
 
-class AuthWrapper extends StatelessWidget {
+class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
 
+  @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
   @override
   Widget build(BuildContext context) {
     return BlocListener<AuthBloc, AuthState>(
@@ -402,17 +407,39 @@ class AuthWrapper extends StatelessWidget {
         return previous.runtimeType != current.runtimeType;
       },
       listener: (context, state) {
+        debugPrint('🔄 AUTH WRAPPER: State changed to ${state.runtimeType}');
+
         // Handle navigation on auth state changes
         if (state is AuthUnauthenticated || state is AuthError) {
-          // Clear any existing routes and navigate to login
-          Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
-          // Reset BLoCs when user logs out (use safer approach)
+          debugPrint('🚨 AUTH WRAPPER: Forcing navigation to LOGIN');
+
+          // Reset BLoCs BEFORE navigation (safer approach)
           _resetBlocsOnLogout(context);
+
+          // Force immediate navigation with post-frame callback
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              Navigator.of(context).pushNamedAndRemoveUntil(
+                '/login',
+                (route) => false,
+              );
+            }
+          });
         } else if (state is AuthAuthenticated) {
-          // Navigate to main app
-          Navigator.of(context).pushNamedAndRemoveUntil('/main', (route) => false);
-          // Update BLoCs with new user context (use safer approach)
+          debugPrint('✅ AUTH WRAPPER: Forcing navigation to MAIN');
+
+          // Update BLoCs with new user context
           _updateBlocsOnLogin(context, state.user.nrm);
+
+          // Force immediate navigation with post-frame callback
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              Navigator.of(context).pushNamedAndRemoveUntil(
+                '/main',
+                (route) => false,
+              );
+            }
+          });
         }
       },
       child: OptimizedBlocBuilder<AuthBloc, AuthState>(
@@ -422,12 +449,16 @@ class AuthWrapper extends StatelessWidget {
           return previous.runtimeType != current.runtimeType;
         },
         builder: (context, state) {
+          debugPrint('🔧 AUTH WRAPPER: Building with state ${state.runtimeType}');
+
           if (state is AuthAuthenticated) {
             return const MainNavigationPage();
           }
           if (state is AuthUnauthenticated || state is AuthError) {
             return const LoginPage();
           }
+
+          // Show loading only for AuthInitial or AuthLoading
           return const LoadingScreen();
         },
       ),

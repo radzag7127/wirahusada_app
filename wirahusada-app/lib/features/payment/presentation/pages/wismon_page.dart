@@ -240,20 +240,23 @@ class _WismonPageState extends State<WismonPage> with RouteAware {
                       debugPrint('🚨 CIRCUIT BREAKER TRIGGERED - Auto logout');
 
                       if (mounted) {
-                        // Show final message
+                        // Show brief message (user will see login page immediately)
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Sesi Anda telah berakhir. Silakan login kembali.'),
-                            backgroundColor: Colors.red,
-                            duration: Duration(seconds: 2),
+                            content: Text('Sesi berakhir, mengarahkan ke login...'),
+                            backgroundColor: Colors.orange,
+                            duration: Duration(milliseconds: 800),
                           ),
                         );
                       }
 
-                      // Trigger logout after short delay
-                      Future.delayed(const Duration(milliseconds: 500), () {
-                        AuthNavigationService.handleTokenExpiration(context);
-                      });
+                      // Immediate logout - no delay
+                      AuthNavigationService.handleTokenExpiration(context);
+
+                      // Force pop current page to help with navigation
+                      if (mounted && Navigator.canPop(context)) {
+                        Navigator.pop(context);
+                      }
                     } else {
                       // Show error for first few failures
                       if (mounted) {
