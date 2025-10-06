@@ -306,19 +306,20 @@ export class PaymentService {
 
   /**
    * Get available payment types from the database
+   * Uses LEFT JOIN to include all payment types (400-499) even if they have no transactions yet
    */
   async getPaymentTypes(): Promise<{ kode: string; nama: string }[]> {
     try {
       const query = `
-        SELECT DISTINCT a.kode, a.nama 
+        SELECT DISTINCT a.kode, a.nama
         FROM akun a
-        INNER JOIN transaksi t ON t.kodeakunkredit = a.kode
-        INNER JOIN t_pembayaranmahasiswa tpm ON t.no = tpm.no
+        LEFT JOIN transaksi t ON t.kodeakunkredit = a.kode
+        LEFT JOIN t_pembayaranmahasiswa tpm ON t.no = tpm.no
         WHERE a.kode >= 400 AND a.kode < 500
         ORDER BY a.kode
       `;
 
-      console.log("🗄️ PAYMENT SERVICE - Getting payment types from akun table");
+      console.log("🗄️ PAYMENT SERVICE - Getting payment types from akun table (including unused types)");
 
       const results = (await executeWismonQuery(query, [])) as any[];
 

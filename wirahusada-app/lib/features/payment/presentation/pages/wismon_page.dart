@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:wismon_keuangan/core/di/injection_container.dart' as di;
 import 'package:wismon_keuangan/core/services/dashboard_preferences_service.dart';
 import 'package:wismon_keuangan/core/services/api_service.dart';
+import 'package:wismon_keuangan/core/services/auth_navigation_service.dart';
 import 'package:wismon_keuangan/features/payment/domain/entities/payment.dart';
 import 'package:wismon_keuangan/features/payment/presentation/bloc/payment_bloc.dart';
 import 'package:wismon_keuangan/features/payment/presentation/bloc/payment_event.dart';
@@ -35,9 +36,15 @@ class _WismonPageState extends State<WismonPage> with RouteAware {
   // Cache preferences to avoid disk I/O on rebuilds
   List<String>? _cachedSelectedTypes;
   bool _preferencesLoaded = false;
-  
+
   // Cross-page communication for dashboard changes
   StreamSubscription<DashboardChangeEvent>? _dashboardChangeSubscription;
+
+  // Circuit breaker to prevent infinite loop on repeated failures
+  int _consecutiveFailures = 0;
+  DateTime? _lastFailureTime;
+  static const int _maxConsecutiveFailures = 3;
+  static const Duration _failureResetDuration = Duration(seconds: 5);
 
   @override
   void initState() {
@@ -205,15 +212,76 @@ class _WismonPageState extends State<WismonPage> with RouteAware {
             child: BlocListener<PaymentBloc, PaymentState>(
               listener: (context, state) {
                 if (state is PaymentError) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(state.message),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
+                  // Check if error is session expired
+                  final isSessionExpired = state.message.contains('Sesi telah berakhir') ||
+                      state.message.contains('silakan login kembali') ||
+                      state.message.contains('Authentication') ||
+                      state.message.contains('Unauthorized');
+
+                  if (isSessionExpired) {
+                    // Circuit breaker: Track consecutive failures
+                    final now = DateTime.now();
+                    if (_lastFailureTime != null &&
+                        now.difference(_lastFailureTime!) < _failureResetDuration) {
+                      _consecutiveFailures++;
+                    } else {
+                      _consecutiveFailures = 1;
+                    }
+                    _lastFailureTime = now;
+
+                    debugPrint('🚨 SESSION EXPIRED - Consecutive failures: $_consecutiveFailures');
+
+                    // Cancel dashboard listener to prevent infinite loop
+                    _dashboardChangeSubscription?.cancel();
+                    _dashboardChangeSubscription = null;
+
+                    // Auto logout if too many failures
+                    if (_consecutiveFailures >= _maxConsecutiveFailures) {
+                      debugPrint('🚨 CIRCUIT BREAKER TRIGGERED - Auto logout');
+
+                      if (mounted) {
+                        // Show final message
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Sesi Anda telah berakhir. Silakan login kembali.'),
+                            backgroundColor: Colors.red,
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      }
+
+                      // Trigger logout after short delay
+                      Future.delayed(const Duration(milliseconds: 500), () {
+                        AuthNavigationService.handleTokenExpiration(context);
+                      });
+                    } else {
+                      // Show error for first few failures
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(state.message),
+                            backgroundColor: Colors.orange,
+                          ),
+                        );
+                      }
+                    }
+                  } else {
+                    // Reset failure counter for non-auth errors
+                    _consecutiveFailures = 0;
+
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(state.message),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
                   }
                 } else if (state is PaymentHistoryLoaded) {
+                  // Reset failure counter on success
+                  _consecutiveFailures = 0;
+                  _lastFailureTime = null;
                   if (mounted) {
                     setState(() {
                       _historyItems = state.historyItems;
@@ -221,6 +289,10 @@ class _WismonPageState extends State<WismonPage> with RouteAware {
                     });
                   }
                 } else if (state is PaymentSummaryLoaded) {
+                  // Reset failure counter on success
+                  _consecutiveFailures = 0;
+                  _lastFailureTime = null;
+
                   if (mounted) {
                     setState(() {
                       _paymentSummary = state.summary;
