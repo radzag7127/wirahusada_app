@@ -203,10 +203,12 @@ export const authenticateToken = (
       'X-Auth-Error': 'token-missing',
       'Last-Modified': new Date().toUTCString()
     });
-    
+
     res.status(401).json({
       success: false,
       message: "Access token required",
+      errorType: "token_missing",  // ADDED: Frontend needs this to detect auth failures
+      requiresLogout: true,  // ADDED: Signal frontend to logout
       errors: ["Authorization header with Bearer token is required"],
       _timestamp: new Date().toISOString(), // Ensure unique responses
     });
@@ -227,6 +229,8 @@ export const authenticateToken = (
       res.status(401).json({
         success: false,
         message: "Invalid token payload",
+        errorType: "token_invalid",  // ADDED: Frontend needs this to detect auth failures
+        requiresLogout: true,  // ADDED: Signal frontend to logout
         errors: ["Token missing required user information"],
         timestamp: new Date().toISOString(),
         _responseId: `auth-error-${Date.now()}`,

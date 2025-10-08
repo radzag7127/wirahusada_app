@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -404,14 +405,23 @@ class _AuthWrapperState extends State<AuthWrapper> {
     return BlocListener<AuthBloc, AuthState>(
       listenWhen: (previous, current) {
         // Listen to all auth state changes for navigation
-        return previous.runtimeType != current.runtimeType;
+        final shouldListen = previous.runtimeType != current.runtimeType;
+        if (kDebugMode) {
+          print('🎯 [AuthWrapper] listenWhen: previous=${previous.runtimeType}, current=${current.runtimeType}, shouldListen=$shouldListen');
+        }
+        return shouldListen;
       },
       listener: (context, state) {
-        debugPrint('🔄 AUTH WRAPPER: State changed to ${state.runtimeType}');
+        if (kDebugMode) {
+          print('🔔 [AuthWrapper] BlocListener triggered - state changed to: ${state.runtimeType}');
+        }
 
         // Handle navigation on auth state changes
         if (state is AuthUnauthenticated || state is AuthError) {
-          debugPrint('🚨 AUTH WRAPPER: Forcing navigation to LOGIN');
+          if (kDebugMode) {
+            print('🚨 [AuthWrapper] Detected logout state: ${state.runtimeType}');
+            print('🚨 [AuthWrapper] Initiating navigation to LOGIN page');
+          }
 
           // Reset BLoCs BEFORE navigation (safer approach)
           _resetBlocsOnLogout(context);
@@ -419,14 +429,28 @@ class _AuthWrapperState extends State<AuthWrapper> {
           // Force immediate navigation with post-frame callback
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
+              if (kDebugMode) {
+                print('🚀 [AuthWrapper] Executing navigation to /login');
+              }
               Navigator.of(context).pushNamedAndRemoveUntil(
                 '/login',
                 (route) => false,
               );
+              // Reset circuit breaker after successful navigation
+              AuthNavigationService.resetCircuitBreaker();
+              if (kDebugMode) {
+                print('✅ [AuthWrapper] Navigation to /login completed');
+              }
+            } else if (kDebugMode) {
+              print('⚠️ [AuthWrapper] Widget not mounted, cannot navigate');
             }
           });
         } else if (state is AuthAuthenticated) {
-          debugPrint('✅ AUTH WRAPPER: Forcing navigation to MAIN');
+          if (kDebugMode) {
+            print('✅ [AuthWrapper] Detected authenticated state');
+            print('✅ [AuthWrapper] User: ${state.user.namam} (${state.user.nrm})');
+            print('✅ [AuthWrapper] Initiating navigation to MAIN page');
+          }
 
           // Update BLoCs with new user context
           _updateBlocsOnLogin(context, state.user.nrm);
@@ -434,10 +458,18 @@ class _AuthWrapperState extends State<AuthWrapper> {
           // Force immediate navigation with post-frame callback
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) {
+              if (kDebugMode) {
+                print('🚀 [AuthWrapper] Executing navigation to /main');
+              }
               Navigator.of(context).pushNamedAndRemoveUntil(
                 '/main',
                 (route) => false,
               );
+              if (kDebugMode) {
+                print('✅ [AuthWrapper] Navigation to /main completed');
+              }
+            } else if (kDebugMode) {
+              print('⚠️ [AuthWrapper] Widget not mounted, cannot navigate');
             }
           });
         }
@@ -446,19 +478,19 @@ class _AuthWrapperState extends State<AuthWrapper> {
         debugName: 'AuthWrapper',
         buildWhen: (previous, current) {
           // Only rebuild when auth state actually changes
-          return previous.runtimeType != current.runtimeType;
+          final shouldRebuild = previous.runtimeType != current.runtimeType;
+          if (kDebugMode) {
+            print('🏗️ [AuthWrapper] buildWhen: previous=${previous.runtimeType}, current=${current.runtimeType}, shouldRebuild=$shouldRebuild');
+          }
+          return shouldRebuild;
         },
         builder: (context, state) {
-          debugPrint('🔧 AUTH WRAPPER: Building with state ${state.runtimeType}');
-
-          if (state is AuthAuthenticated) {
-            return const MainNavigationPage();
-          }
-          if (state is AuthUnauthenticated || state is AuthError) {
-            return const LoginPage();
+          if (kDebugMode) {
+            print('🔧 [AuthWrapper] Builder called with state: ${state.runtimeType}');
           }
 
-          // Show loading only for AuthInitial or AuthLoading
+          // Always show loading - listener handles navigation
+          // This prevents builder/listener navigation conflicts
           return const LoadingScreen();
         },
       ),

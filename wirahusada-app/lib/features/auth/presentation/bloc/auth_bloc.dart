@@ -82,11 +82,28 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     LogoutRequestedEvent event,
     Emitter<AuthState> emit,
   ) async {
+    if (kDebugMode) {
+      print('🚪 [AuthBloc] Logout requested - starting logout process');
+    }
+
     final result = await logoutUseCase(NoParams());
 
     result.fold(
-      (failure) => emit(AuthError(message: _mapFailureToMessage(failure))),
-      (_) => emit(const AuthUnauthenticated()),
+      (failure) {
+        if (kDebugMode) {
+          print('❌ [AuthBloc] Logout failed: ${_mapFailureToMessage(failure)}');
+        }
+        emit(AuthError(message: _mapFailureToMessage(failure)));
+      },
+      (_) {
+        if (kDebugMode) {
+          print('✅ [AuthBloc] Logout successful, emitting AuthUnauthenticated');
+        }
+        emit(const AuthUnauthenticated());
+        if (kDebugMode) {
+          print('✅ [AuthBloc] AuthUnauthenticated state emitted successfully');
+        }
+      },
     );
   }
 

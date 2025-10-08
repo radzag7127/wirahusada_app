@@ -1,4 +1,5 @@
 import 'package:dartz/dartz.dart';
+import 'package:flutter/foundation.dart';
 import '../../../../core/error/failures.dart';
 import '../../../../core/services/api_service.dart';
 import '../../../../core/services/dashboard_preferences_service.dart';
@@ -13,9 +14,18 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, User>> login(String namamNim, String nrm) async {
     try {
+      if (kDebugMode) {
+        print('🔐 [AuthRepository] Starting login process for: $namamNim');
+      }
       final userModel = await apiService.login(namamNim, nrm);
+      if (kDebugMode) {
+        print('✅ [AuthRepository] Login successful for: ${userModel.namam}');
+      }
       return Right(userModel);
     } catch (e) {
+      if (kDebugMode) {
+        print('❌ [AuthRepository] Login failed: $e');
+      }
       return Left(AuthFailure(e.toString().replaceFirst('Exception: ', '')));
     }
   }
@@ -23,11 +33,24 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, void>> logout() async {
     try {
+      if (kDebugMode) {
+        print('🚪 [AuthRepository] Starting logout process');
+      }
       await apiService.clearAuthToken();
+      if (kDebugMode) {
+        print('✅ [AuthRepository] Auth tokens cleared');
+      }
       // Also clear dashboard preferences on logout to prevent data leakage
       await DashboardPreferencesService().clearPreferences();
+      if (kDebugMode) {
+        print('✅ [AuthRepository] Dashboard preferences cleared');
+        print('✅ [AuthRepository] Logout completed successfully');
+      }
       return const Right(null);
     } catch (e) {
+      if (kDebugMode) {
+        print('❌ [AuthRepository] Logout failed: $e');
+      }
       return Left(CacheFailure(e.toString()));
     }
   }
